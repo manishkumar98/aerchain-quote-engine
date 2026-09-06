@@ -335,6 +335,8 @@ export async function ingestVendorSubmission(params: {
   let excluded = 0;
 
   const runTx = db.transaction(() => {
+    db.prepare('DELETE FROM vendor_line_quotes WHERE vendor_id = ?').run(vendorId);
+    
     updateVendorDoc.run(
       computedHash,
       filePath ? `/uploads/${path.basename(filePath)}` : null,
