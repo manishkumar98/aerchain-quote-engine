@@ -1,0 +1,26 @@
+{
+  "vendor_id": "VEND-05",
+  "vendor_name": "Balaji Traders",
+  "source_file": "balaji_traders_email_quote.txt",
+  "inbound_modality": "RAW_EMAIL",
+  "currency": "INR",
+  "email_metadata": {
+    "from": "sales@balajitraders.in",
+    "to": "procurement@aerchain.io",
+    "subject": "Re: RFx Corrugated Packaging Rates FY26",
+    "date": "2026-08-28T14:30:00Z"
+  },
+  "raw_email_body": "Dear Procurement Team,\n\nPlease find our rates for the upcoming contract:\n- All 5-ply cartons @ Rs 44/kg base.\n- All 3-ply universal cartons @ Rs 39/kg base.\n- Die-cut mailers @ Rs 56/kg base.\n- Edge protectors @ Rs 14.50/pc.\n- Honeycomb buffer sheets @ Rs 82.00/pc.\n- Reinforced kraft tape @ Rs 39.50/roll.\n\nNote: Freight is 4% extra on total invoice. Delivery within 4 days across all plant locations. Tooling at actual cost.\n\nRegards,\nBalaji Packaging Team",
+  "signal_confidence": 0.65,
+  "freight_surcharge_pct": 0.0400,
+  "rules": {
+    "5_ply_rate_per_kg": 44.00,
+    "3_ply_rate_per_kg": 39.00,
+    "die_cut_rate_per_kg": 56.00
+  },
+  "protective_items": {
+    "PKG-028": { "rate": 14.50, "unit": "per box" },
+    "PKG-029": { "rate": 82.00, "unit": "per box" },
+    "PKG-030": { "rate": 39.50, "unit": "per box" }
+  }
+}

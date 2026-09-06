@@ -1,0 +1,6 @@
+id,name,inbound_modality,raw_document_url,doc_sha256,iso_9001_certified,fsc_certified,credit_terms,quality_audit_score
+VEND-01,Packaging World India,MULTI_TAB_EXCEL,/documents/vend01_packaging_world.xlsx,a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0,1,1,Net 60,95.00
+VEND-02,Apex Cartons & Containers,ANGLED_PHOTO,/documents/vend02_apex_cartons_scan.jpg,b2c3d4e5f6a17890123456789abcdef0123456789abcdef0123456789abcdef1,1,0,Net 30,88.00
+VEND-03,National Paper & Board Mills,PARTIAL_WORD,/documents/vend03_national_paper_quote.docx,c3d4e5f6a1b27890123456789abcdef0123456789abcdef0123456789abcdef2,0,0,Net 45,52.00
+VEND-04,Global Pack Holdings,FOREIGN_USD_PDF,/documents/vend04_global_pack_intl.pdf,d4e5f6a1b2c37890123456789abcdef0123456789abcdef0123456789abcdef3,1,1,Net 30,96.00
+VEND-05,Balaji Traders,RAW_EMAIL,/documents/vend05_balaji_email.txt,e5f6a1b2c3d47890123456789abcdef0123456789abcdef0123456789abcdef4,1,0,Net 15,82.00

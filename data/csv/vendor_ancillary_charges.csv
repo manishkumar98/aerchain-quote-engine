@@ -1,0 +1,3 @@
+id,vendor_id,fee_type,fee_scope,raw_quoted_text,amount_inr,percentage_value,source_location_ref
+ANC-V1-01,VEND-01,TOOLING_PLATE_FEE,BASKET_FIXED,"Cell D34 Tab 2: Stereo cylinder plate charge ₹25,000 one-time",25000.00,0.0000,"Cell D34 on Tab ""Terms"""
+ANC-V5-01,VEND-05,FREIGHT_SURCHARGE,PERCENTAGE_ON_TOTAL,Email Body: Freight 4% extra on total invoice,0.00,0.0400,Email body paragraph 1

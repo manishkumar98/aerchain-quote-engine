@@ -1,0 +1,57 @@
+{
+  "vendor_id": "VEND-01",
+  "vendor_name": "Packaging World India",
+  "source_file": "packaging_world_quote_fy26.xlsx",
+  "inbound_modality": "MULTI_TAB_EXCEL",
+  "currency": "INR",
+  "signal_confidence": 1.0,
+  "tabs": [
+    {
+      "tab_name": "Line Item Rates",
+      "items": [
+        { "line_number": 1, "sku_id": "PKG-001", "raw_rate": 45.00, "raw_unit": "per box", "cell_ref": "C2" },
+        { "line_number": 2, "sku_id": "PKG-002", "raw_rate": 38.10, "raw_unit": "per box", "cell_ref": "C3" },
+        { "line_number": 3, "sku_id": "PKG-003", "raw_rate": 35.80, "raw_unit": "per box", "cell_ref": "C4" },
+        { "line_number": 4, "sku_id": "PKG-004", "raw_rate": 41.50, "raw_unit": "per box", "cell_ref": "C5" },
+        { "line_number": 5, "sku_id": "PKG-005", "raw_rate": 39.75, "raw_unit": "per box", "cell_ref": "C6" },
+        { "line_number": 6, "sku_id": "PKG-006", "raw_rate": 33.90, "raw_unit": "per box", "cell_ref": "C7" },
+        { "line_number": 7, "sku_id": "PKG-007", "raw_rate": 31.80, "raw_unit": "per box", "cell_ref": "C8" },
+        { "line_number": 8, "sku_id": "PKG-008", "raw_rate": 29.50, "raw_unit": "per box", "cell_ref": "C9" },
+        { "line_number": 9, "sku_id": "PKG-009", "raw_rate": 47.60, "raw_unit": "per box", "cell_ref": "C10" },
+        { "line_number": 10, "sku_id": "PKG-010", "raw_rate": 27.90, "raw_unit": "per box", "cell_ref": "C11" },
+        { "line_number": 11, "sku_id": "PKG-011", "raw_rate": 21.80, "raw_unit": "per box", "cell_ref": "C12" },
+        { "line_number": 12, "sku_id": "PKG-012", "raw_rate": 19.80, "raw_unit": "per box", "cell_ref": "C13" },
+        { "line_number": 13, "sku_id": "PKG-013", "raw_rate": 17.90, "raw_unit": "per box", "cell_ref": "C14" },
+        { "line_number": 14, "sku_id": "PKG-014", "raw_rate": 20.80, "raw_unit": "per box", "cell_ref": "C15" },
+        { "line_number": 15, "sku_id": "PKG-015", "raw_rate": 16.90, "raw_unit": "per box", "cell_ref": "C16" },
+        { "line_number": 16, "sku_id": "PKG-016", "raw_rate": 19.40, "raw_unit": "per box", "cell_ref": "C17" },
+        { "line_number": 17, "sku_id": "PKG-017", "raw_rate": 15.40, "raw_unit": "per box", "cell_ref": "C18" },
+        { "line_number": 18, "sku_id": "PKG-018", "raw_rate": 18.20, "raw_unit": "per box", "cell_ref": "C19" },
+        { "line_number": 19, "sku_id": "PKG-019", "raw_rate": 20.20, "raw_unit": "per box", "cell_ref": "C20" },
+        { "line_number": 20, "sku_id": "PKG-020", "raw_rate": 18.80, "raw_unit": "per box", "cell_ref": "C21" },
+        { "line_number": 21, "sku_id": "PKG-021", "raw_rate": 15.80, "raw_unit": "per box", "cell_ref": "C22" },
+        { "line_number": 22, "sku_id": "PKG-022", "raw_rate": 14.30, "raw_unit": "per box", "cell_ref": "C23" },
+        { "line_number": 23, "sku_id": "PKG-023", "raw_rate": 12.80, "raw_unit": "per box", "cell_ref": "C24" },
+        { "line_number": 24, "sku_id": "PKG-024", "raw_rate": 12.30, "raw_unit": "per box", "cell_ref": "C25" },
+        { "line_number": 25, "sku_id": "PKG-025", "raw_rate": 11.40, "raw_unit": "per box", "cell_ref": "C26" },
+        { "line_number": 26, "sku_id": "PKG-026", "raw_rate": 10.30, "raw_unit": "per box", "cell_ref": "C27" },
+        { "line_number": 27, "sku_id": "PKG-027", "raw_rate": 13.40, "raw_unit": "per box", "cell_ref": "C28" },
+        { "line_number": 28, "sku_id": "PKG-028", "raw_rate": 14.80, "raw_unit": "per box", "cell_ref": "C29" },
+        { "line_number": 29, "sku_id": "PKG-029", "raw_rate": 84.00, "raw_unit": "per box", "cell_ref": "C30" },
+        { "line_number": 30, "sku_id": "PKG-030", "raw_rate": 41.00, "raw_unit": "per box", "cell_ref": "C31" }
+      ]
+    },
+    {
+      "tab_name": "Commercial Terms",
+      "footnotes": [
+        {
+          "cell_ref": "D34",
+          "fee_type": "TOOLING_PLATE_FEE",
+          "fee_scope": "BASKET_FIXED",
+          "raw_text": "One-time stereo cylinder plate charge of ₹25,000 applicable to contract initiation.",
+          "amount_inr": 25000.00
+        }
+      ]
+    }
+  ]
+}

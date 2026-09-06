@@ -1,0 +1,31 @@
+line_number,sku_id,sku_name,spec_category,dimensions,spec_weight_kg,target_volume,benchmark_price_inr,total_spend_inr,spend_pct_of_budget,financial_exposure
+1,PKG-001,5-Ply Heavy Master Shipper (600x400x400mm),5-Ply Master,600x400x400mm,1.1500,100000,45.0000,4500000,11.25,HIGH
+2,PKG-002,5-Ply Standard Heavy Shipper (550x350x350mm),5-Ply Master,550x350x350mm,1.0500,80000,38.0000,3040000,7.6,HIGH
+3,PKG-003,5-Ply Bulk Cargo Shipper (500x350x300mm),5-Ply Master,500x350x300mm,0.9800,90000,36.0000,3240000,8.1,HIGH
+4,PKG-004,5-Ply Reinforced Export Carton (500x400x350mm),5-Ply Master,500x400x350mm,1.1000,70000,42.0000,2940000,7.35,HIGH
+5,PKG-005,5-Ply Industrial Component Shipper (520x380x320mm),5-Ply Master,520x380x320mm,1.0200,65000,40.0000,2600000,6.5,HIGH
+6,PKG-006,5-Ply Heavy Duty Warehouse Box (480x320x300mm),5-Ply Master,480x320x300mm,0.9000,75000,34.0000,2550000,6.38,HIGH
+7,PKG-007,5-Ply Medium Freight Carton (450x300x300mm),5-Ply Master,450x300x300mm,0.8500,60000,32.0000,1920000,4.8,MEDIUM
+8,PKG-008,5-Ply Compact Heavy Shipper (420x300x280mm),5-Ply Master,420x300x280mm,0.8000,55000,30.0000,1650000,4.13,MEDIUM
+9,PKG-009,5-Ply Jumbo Master Shipper (600x450x400mm),5-Ply Master,600x450x400mm,1.2000,50000,48.0000,2400000,6,HIGH
+10,PKG-010,5-Ply Base Modular Carton (400x300x300mm),5-Ply Master,400x300x300mm,0.7500,50000,28.0000,1400000,3.5,MEDIUM
+11,PKG-011,3-Ply Universal Secondary Carton L (350x250x200mm),3-Ply Universal,350x250x200mm,0.5200,70000,22.0000,1540000,3.85,MEDIUM
+12,PKG-012,3-Ply Universal Secondary Carton M (320x220x180mm),3-Ply Universal,320x220x180mm,0.4600,65000,20.0000,1300000,3.25,MEDIUM
+13,PKG-013,3-Ply High-Runner Distribution Box (300x200x150mm),3-Ply Universal,300x200x150mm,0.4000,80000,18.0000,1440000,3.6,MEDIUM
+14,PKG-014,3-Ply Mid-Profile Delivery Carton (340x240x190mm),3-Ply Universal,340x240x190mm,0.5000,50000,21.0000,1050000,2.63,MEDIUM
+15,PKG-015,3-Ply Standard Dispatch Carton (280x190x140mm),3-Ply Universal,280x190x140mm,0.3800,60000,17.0000,1020000,2.55,MEDIUM
+16,PKG-016,3-Ply Square Dispatch Box (300x250x200mm),3-Ply Universal,300x250x200mm,0.4800,45000,19.5000,877500,2.19,MEDIUM
+17,PKG-017,3-Ply Compact Secondary Box (260x180x130mm),3-Ply Universal,260x180x130mm,0.3500,50000,15.5000,775000,1.94,LOW
+18,PKG-018,3-Ply Retail Dispatch Shipper (310x210x160mm),3-Ply Universal,310x210x160mm,0.4200,40000,18.5000,740000,1.85,LOW
+19,PKG-019,3-Ply Medium Parcel Carton (330x230x170mm),3-Ply Universal,330x230x170mm,0.4700,35000,20.5000,717500,1.79,LOW
+20,PKG-020,3-Ply Shallow Universal Box (350x250x150mm),3-Ply Universal,350x250x150mm,0.4500,30000,19.0000,570000,1.43,LOW
+21,PKG-021,Die-Cut Self-Locking Mailer L (300x200x80mm),Die-Cut Mailer,300x200x80mm,0.2400,35000,16.0000,560000,1.4,LOW
+22,PKG-022,Die-Cut Self-Locking Mailer M (280x180x70mm),Die-Cut Mailer,280x180x70mm,0.2200,30000,14.5000,435000,1.09,LOW
+23,PKG-023,Die-Cut E-Commerce Box (250x160x60mm),Die-Cut Mailer,250x160x60mm,0.1900,40000,13.0000,520000,1.3,LOW
+24,PKG-024,Die-Cut Flat Presentation Mailer (240x150x55mm),Die-Cut Mailer,240x150x55mm,0.1800,35000,12.5000,437500,1.09,LOW
+25,PKG-025,Die-Cut Compact Courier Mailer (220x140x50mm),Die-Cut Mailer,220x140x50mm,0.1600,25000,11.5000,287500,0.72,LOW
+26,PKG-026,Die-Cut Mini Postal Box (200x150x50mm),Die-Cut Mailer,200x150x50mm,0.1500,30000,10.5000,315000,0.79,LOW
+27,PKG-027,Die-Cut Slim Literature Mailer (260x170x65mm),Die-Cut Mailer,260x170x65mm,0.2000,20000,13.5000,270000,0.68,LOW
+28,PKG-028,Heavy-Duty L-Edge Protectors (50x50x1000mm),Protective,50x50x1000mm,0.3000,10000,15.0000,150000,0.38,LOW
+29,PKG-029,Corrugated Honeycomb Buffer Sheets (1200x1000mm),Protective,1200x1000mm,0.9000,5000,85.0000,425000,1.06,LOW
+30,PKG-030,Self-Adhesive Reinforced Kraft Tape (72mm x 50m),Protective,72mm x 50m,0.4500,8000,41.2500,330000,0.83,LOW

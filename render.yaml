@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: aerchain-quote-engine
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.2
+      - key: GEMINI_API_KEY
+        sync: false
