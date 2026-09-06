@@ -55,6 +55,7 @@ export interface CopilotMessage {
   highlightCells?: { line_id: string; winning_vendor_id: string }[];
   summaryMarkdown?: string;
   fxSensitivityDetails?: any;
+  is_fallback?: boolean;
 }
 
 interface CopilotPaneProps {
@@ -103,6 +104,7 @@ export function CopilotPane({
 
   const [inputQuery, setInputQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -158,6 +160,7 @@ export function CopilotPane({
         highlightCells: data.highlight_cells,
         summaryMarkdown: data.summary_markdown,
         fxSensitivityDetails: data.fx_sensitivity_details,
+        is_fallback: data.is_fallback,
       };
 
       setMessages((prev) => [...prev, copilotMsg]);
@@ -262,6 +265,54 @@ export function CopilotPane({
         </div>
       )}
 
+      {/* 2.5 Pinned Question Guide */}
+      <div className="border-b border-slate-800 shrink-0">
+        <button
+          onClick={() => setIsGuideOpen(!isGuideOpen)}
+          className="w-full flex items-center justify-between px-4 py-2 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 transition-colors"
+        >
+          <div className="flex items-center gap-1.5 font-semibold text-amber-400">
+            💡 Questions Copilot Can Answer
+          </div>
+          {isGuideOpen ? <ChevronLeft className="w-4 h-4 -rotate-90" /> : <ChevronRight className="w-4 h-4 rotate-90" />}
+        </button>
+        {isGuideOpen && (
+          <div className="px-4 py-3 bg-slate-950 text-xs space-y-3 shadow-inner overflow-y-auto max-h-[30vh]">
+            <div>
+              <h4 className="font-bold text-slate-400 mb-1.5">🏆 Award & Allocation</h4>
+              <div className="flex flex-col gap-1.5 items-start">
+                <button onClick={() => handleSendQuery('Split cheapest per line, excluding failed quality questionnaire')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Split cheapest per line, excluding failed quality questionnaire</button>
+                <button onClick={() => handleSendQuery('Who is the cheapest single-source vendor across all lines?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Who is the cheapest single-source vendor across all lines?</button>
+                <button onClick={() => handleSendQuery('Award each packaging category to a single best vendor')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Award each packaging category to a single best vendor</button>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-400 mb-1.5">🛡️ Vendor Coverage & Compliance</h4>
+              <div className="flex flex-col gap-1.5 items-start">
+                <button onClick={() => handleSendQuery('Is Vendor 3 providing all materials?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Is Vendor 3 providing all materials?</button>
+                <button onClick={() => handleSendQuery('Which vendors failed the mandatory ISO 9001 quality audit?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Which vendors failed the mandatory ISO 9001 quality audit?</button>
+                <button onClick={() => handleSendQuery('Which vendors deviated from our baseline Net 60 commercial terms?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Which vendors deviated from our baseline Net 60 commercial terms?</button>
+                <button onClick={() => handleSendQuery('Which vendors quoted ex-works versus delivered (DDP)?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Which vendors quoted ex-works versus delivered (DDP)?</button>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-400 mb-1.5">🔍 Hidden Fees & Normalization</h4>
+              <div className="flex flex-col gap-1.5 items-start">
+                <button onClick={() => handleSendQuery('Identify all hidden ancillary fees and surcharges across all suppliers')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Identify all hidden ancillary fees and surcharges across all suppliers</button>
+                <button onClick={() => handleSendQuery('How much does Vendor 1\'s one-time tooling charge add to the per-box price?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">How much does Vendor 1's one-time tooling charge add to the per-box price?</button>
+                <button onClick={() => handleSendQuery('How was Vendor 2\'s rate for PKG-001 normalized from the photo scan?')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">How was Vendor 2's rate for PKG-001 normalized from the photo scan?</button>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-400 mb-1.5">📈 Macro & Currency Sensitivity</h4>
+              <div className="flex flex-col gap-1.5 items-start">
+                <button onClick={() => handleSendQuery('Compare landed spend if USD strengthens to 87.00 INR')} className="text-left px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors w-full">Compare landed spend if USD strengthens to 87.00 INR</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 3. Messages Scrollable Body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((msg) => (
@@ -331,6 +382,26 @@ export function CopilotPane({
                   }}
                 />
               </div>
+
+              {/* Fallback Guardrail */}
+              {(msg.is_fallback || msg.queryAst?.intent === 'UNKNOWN') && (
+                <div className="mt-3 p-3 bg-amber-950/30 border border-amber-500/40 text-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                    <div className="font-medium">
+                      <div className="text-amber-300 font-bold mb-1">⚠️ I cannot answer this yet.</div>
+                      <div className="text-[11px] leading-relaxed opacity-90">I am specialized in deterministic commercial analysis, landed costs, and compliance gates for this RFx.</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5 border-t border-amber-900/50 pt-2">
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">Try asking:</p>
+                    <button onClick={() => handleSendQuery('Split cheapest per line, excluding failed quality questionnaire')} className="w-full text-left px-2 py-1.5 rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-100 text-[11px] transition-colors border border-amber-800/50 block">Split cheapest (ISO-filtered)</button>
+                    <button onClick={() => handleSendQuery('Is Vendor 3 providing all materials?')} className="w-full text-left px-2 py-1.5 rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-100 text-[11px] transition-colors border border-amber-800/50 block">Is Vendor 3 providing all materials?</button>
+                    <button onClick={() => handleSendQuery('Identify hidden ancillary fees across all vendors')} className="w-full text-left px-2 py-1.5 rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-100 text-[11px] transition-colors border border-amber-800/50 block">Identify hidden ancillary fees across all vendors</button>
+                    <button onClick={() => handleSendQuery('Compare landed spend if USD strengthens to 87.00 INR')} className="w-full text-left px-2 py-1.5 rounded bg-amber-900/40 hover:bg-amber-800/60 text-amber-100 text-[11px] transition-colors border border-amber-800/50 block">Compare landed spend if USD strengthens to 87.00 INR</button>
+                  </div>
+                </div>
+              )}
 
               {/* Interactive Scenario Action Bar */}
               {msg.highlightCells && msg.highlightCells.length > 0 && (

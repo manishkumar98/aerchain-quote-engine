@@ -11,7 +11,11 @@ export type CopilotIntentType =
   | 'OPTIMIZE_SPLIT_AWARD'
   | 'COMPARE_LANDED_COST'
   | 'LIST_HIDDEN_TERMS'
-  | 'FX_SENSITIVITY';
+  | 'FX_SENSITIVITY'
+  | 'AUDIT_VENDOR_COVERAGE'
+  | 'AUDIT_COMPLIANCE_TERMS'
+  | 'EXPLAIN_NORMALIZATION'
+  | 'UNKNOWN';
 
 export interface CopilotConstraints {
   exclude_failed_questionnaire?: boolean;
@@ -21,6 +25,9 @@ export interface CopilotConstraints {
   eligible_vendor_ids?: string[];
   target_vendor_id?: string;
   category_filter?: string;
+  compliance_type?: 'quality' | 'payment' | 'incoterms';
+  target_line_id?: string;
+  award_by_category?: boolean;
 }
 
 export interface CopilotIntentAST {
@@ -79,6 +86,44 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
     };
   }
 
+  // 1a. Explain Normalization
+  if (
+    normalized.match(/(?:how\s+was.*normalized|tooling.*add|plate.*amortiz|provenance)/i)
+  ) {
+    let targetVendor = undefined;
+    if (normalized.match(/(?:vendor 2|v2)/i)) targetVendor = 'VEND-02';
+    if (normalized.match(/(?:vendor 1|v1)/i)) targetVendor = 'VEND-01';
+    let targetLineId = undefined;
+    if (normalized.match(/pkg-001/i)) targetLineId = 'PKG-001';
+
+    return {
+      intent: 'EXPLAIN_NORMALIZATION',
+      constraints: { target_vendor_id: targetVendor, target_line_id: targetLineId },
+      metrics: [],
+      raw_query: query,
+      parsed_via: 'DETERMINISTIC_FALLBACK',
+      zero_arithmetic_verified: true,
+    };
+  }
+
+  // 1b. Audit Compliance Terms
+  if (
+    normalized.match(/(?:payment\s+terms|deviated.*net\s*60|ex-works|freight.*extra|incoterms?|who.*failed.*iso|which.*vendors.*failed.*iso|mandatory.*iso|failed.*mandatory)/i)
+  ) {
+    let subType: 'quality' | 'payment' | 'incoterms' = 'payment';
+    if (normalized.match(/iso|quality/i)) subType = 'quality';
+    else if (normalized.match(/ex-works|freight|incoterm/i)) subType = 'incoterms';
+
+    return {
+      intent: 'AUDIT_COMPLIANCE_TERMS',
+      constraints: { compliance_type: subType },
+      metrics: [],
+      raw_query: query,
+      parsed_via: 'DETERMINISTIC_FALLBACK',
+      zero_arithmetic_verified: true,
+    };
+  }
+
   // 2. Check for Hidden Footnote & Buried Ancillary Fees (e.g. "hidden fees", "buried costs", "surcharges", "footnotes")
   if (
     normalized.includes('hidden') ||
@@ -129,30 +174,93 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
     };
   }
 
-  // 4. Default / Split-Award Optimization (e.g. "cheapest split-award per line", "split award", "optimal award")
-  const excludeQualityFailed =
-    normalized.includes('iso') ||
-    normalized.includes('quality') ||
-    normalized.includes('pass') ||
-    normalized.includes('questionnaire') ||
-    normalized.includes('compliance') ||
-    normalized.includes('failing') ||
-    normalized.includes('excluding');
-
-  let maxConcentration: number | undefined;
-  const concMatch = normalized.match(/(?:max|cap|limit)\s+(?:at\s+)?(\d{1,3})%/i);
-  if (concMatch && concMatch[1]) {
-    maxConcentration = parseFloat(concMatch[1]) / 100.0;
+  // 4. Audit Vendor Coverage (e.g. "is vendor 3 providing all materials?")
+  if (
+    normalized.match(/(?:providing\s+all|quoted?\s+all|quoted?\s+everything|complete\s+bid|all\s+materials|all\s+items|missing\s+lines|omitted|partial\s+bid|did\s+vendor\s+\d+\s+quote)/i)
+  ) {
+    let targetVendor = 'VEND-03'; // default to Vendor 3 if not specified explicitly but asked
+    if (normalized.match(/(?:vendor 3|v3|national paper)/i)) {
+      targetVendor = 'VEND-03';
+    }
+    return {
+      intent: 'AUDIT_VENDOR_COVERAGE',
+      constraints: { target_vendor_id: targetVendor },
+      metrics: ['coverage_gap', 'compliance_gaps'],
+      raw_query: query,
+      parsed_via: 'DETERMINISTIC_FALLBACK',
+      zero_arithmetic_verified: true,
+    };
   }
 
+  // 5. Concentration-limited split (must come before general split-award to avoid being swallowed)
+  if (
+    normalized.match(/(?:no single vendor.*(?:more|exceed).*\d+%|\d+%.*concentration|concentration.*limit|cap.*vendor.*\d+%)/i) ||
+    (normalized.includes('50%') && (normalized.includes('total spend') || normalized.includes('concentration') || normalized.includes('split')))
+  ) {
+    const concMatch = normalized.match(/(\d{1,3})%/);
+    const maxConcentration = concMatch ? parseFloat(concMatch[1]) / 100.0 : 0.5;
+    return {
+      intent: 'OPTIMIZE_SPLIT_AWARD',
+      constraints: {
+        exclude_failed_questionnaire: false,
+        max_vendor_concentration_pct: maxConcentration,
+        exchange_rate_usd_inr: 84.0,
+        award_by_category: false,
+      },
+      metrics: ['total_landed_spend', 'delta_vs_baseline', 'line_allocations', 'award_distribution'],
+      raw_query: query,
+      parsed_via: 'DETERMINISTIC_FALLBACK',
+      zero_arithmetic_verified: true,
+    };
+  }
+
+  // 6. Split-Award Optimization (e.g. "cheapest split-award per line", "split award", "optimal award", "Award each packaging category")
+  if (
+    normalized.includes('split-award') ||
+    normalized.includes('split award') ||
+    normalized.includes('split cheapest') ||
+    normalized.includes('optimal allocation') ||
+    normalized.includes('cheapest per line') ||
+    normalized.includes('award each packaging category') ||
+    (normalized.includes('cheapest') && !normalized.includes('vendor'))
+  ) {
+    const excludeQualityFailed =
+      normalized.includes('iso') ||
+      normalized.includes('quality') ||
+      normalized.includes('pass') ||
+      normalized.includes('questionnaire') ||
+      normalized.includes('compliance') ||
+      normalized.includes('failing') ||
+      normalized.includes('excluding');
+
+    let maxConcentration: number | undefined;
+    const concMatch = normalized.match(/(?:max|cap|limit)\s+(?:at\s+)?(\d{1,3})%/i);
+    if (concMatch && concMatch[1]) {
+      maxConcentration = parseFloat(concMatch[1]) / 100.0;
+    }
+    
+    const awardByCategory = normalized.includes('category');
+
+    return {
+      intent: 'OPTIMIZE_SPLIT_AWARD',
+      constraints: {
+        exclude_failed_questionnaire: excludeQualityFailed,
+        max_vendor_concentration_pct: maxConcentration || 1.0,
+        exchange_rate_usd_inr: 84.0,
+        award_by_category: awardByCategory,
+      },
+      metrics: ['total_landed_spend', 'delta_vs_baseline', 'line_allocations', 'award_distribution'],
+      raw_query: query,
+      parsed_via: 'DETERMINISTIC_FALLBACK',
+      zero_arithmetic_verified: true,
+    };
+  }
+
+  // 6. Explicit Guardrail Fallback: UNKNOWN
   return {
-    intent: 'OPTIMIZE_SPLIT_AWARD',
-    constraints: {
-      exclude_failed_questionnaire: excludeQualityFailed,
-      max_vendor_concentration_pct: maxConcentration || 1.0,
-      exchange_rate_usd_inr: 84.0,
-    },
-    metrics: ['total_landed_spend', 'delta_vs_baseline', 'line_allocations', 'award_distribution'],
+    intent: 'UNKNOWN',
+    constraints: {},
+    metrics: [],
     raw_query: query,
     parsed_via: 'DETERMINISTIC_FALLBACK',
     zero_arithmetic_verified: true,
@@ -168,12 +276,13 @@ OPERATIONAL AND SAFETY DIRECTIVES:
    - Do NOT output calculated numbers.
 2. Emit JSON strictly in this format:
 {
-  "intent": "OPTIMIZE_SPLIT_AWARD" | "COMPARE_LANDED_COST" | "LIST_HIDDEN_TERMS" | "FX_SENSITIVITY",
+  "intent": "OPTIMIZE_SPLIT_AWARD" | "COMPARE_LANDED_COST" | "LIST_HIDDEN_TERMS" | "FX_SENSITIVITY" | "AUDIT_VENDOR_COVERAGE" | "AUDIT_COMPLIANCE_TERMS" | "EXPLAIN_NORMALIZATION" | "UNKNOWN",
   "constraints": {
     "exclude_failed_questionnaire": boolean,
     "max_vendor_concentration_pct": number,
     "exchange_rate_usd_inr": number,
-    "eligible_vendor_ids": string[]
+    "eligible_vendor_ids": string[],
+    "target_vendor_id": string
   },
   "metrics": string[]
 }

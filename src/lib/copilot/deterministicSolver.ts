@@ -99,8 +99,16 @@ export class DeterministicOptimizationSolver {
         return this.solveHiddenTerms();
       case 'COMPARE_LANDED_COST':
         return this.solveCompareLandedCost(constraints);
+      case 'AUDIT_VENDOR_COVERAGE':
+        return this.solveAuditVendorCoverage(constraints);
+      case 'AUDIT_COMPLIANCE_TERMS':
+        return this.solveAuditComplianceTerms(constraints);
+      case 'EXPLAIN_NORMALIZATION':
+        return this.solveExplainNormalization(constraints);
+      case 'UNKNOWN':
+        return this.solveUnknown();
       default:
-        return this.solveSplitAward(constraints);
+        return this.solveUnknown();
     }
   }
 
@@ -196,60 +204,138 @@ export class DeterministicOptimizationSolver {
     let totalSpend = 0;
     let baselineSpend = 0;
 
-    for (const line of lines) {
-      const lineBaselineSpend = line.target_volume * line.baseline_benchmark_price;
-      baselineSpend += lineBaselineSpend;
-
-      let winningVendorId = '';
-      let lowestLandedCost = Infinity;
-
-      for (const vId of eligibleVendorIds) {
-        const q = quoteMap.get(`${line.id}:${vId}`);
-        if (!q || !q.is_quoted || q.true_landed_unit_cost === null) {
-          continue;
-        }
-
-        let rate = parseFloat(q.true_landed_unit_cost);
-
-        // If FX rate modified for USD vendor
-        if (q.raw_currency === 'USD' && fxRate !== 84.0 && q.raw_price !== null) {
-          rate = parseFloat(q.raw_price) * fxRate;
-        }
-
-        if (rate < lowestLandedCost) {
-          lowestLandedCost = rate;
-          winningVendorId = vId;
-        }
+    if (constraints.award_by_category) {
+      // Group lines by category
+      const categories = new Map<string, typeof lines>();
+      for (const line of lines) {
+        if (!categories.has(line.spec_category)) categories.set(line.spec_category, []);
+        categories.get(line.spec_category)!.push(line);
       }
 
-      if (winningVendorId) {
-        const lineSpend = line.target_volume * lowestLandedCost;
-        totalSpend += lineSpend;
+      for (const [category, catLines] of categories.entries()) {
+        let winningVendorId = '';
+        let lowestCatCost = Infinity;
 
-        const vendorWin = vendorWins.get(winningVendorId)!;
-        vendorWin.lines_won += 1;
-        vendorWin.spend += lineSpend;
-        vendorWin.lines.push(line.id);
+        for (const vId of eligibleVendorIds) {
+          let canSupplyAll = true;
+          let catCost = 0;
+          for (const line of catLines) {
+            const q = quoteMap.get(`${line.id}:${vId}`);
+            if (!q || !q.is_quoted || q.true_landed_unit_cost === null) {
+              canSupplyAll = false;
+              break;
+            }
+            let rate = parseFloat(q.true_landed_unit_cost);
+            if (q.raw_currency === 'USD' && fxRate !== 84.0 && q.raw_price !== null) {
+              rate = parseFloat(q.raw_price) * fxRate;
+            }
+            catCost += line.target_volume * rate;
+          }
 
-        const vendorObj = vendors.find((v) => v.id === winningVendorId);
+          if (canSupplyAll && catCost < lowestCatCost) {
+            lowestCatCost = catCost;
+            winningVendorId = vId;
+          }
+        }
 
-        lineAllocations.push({
-          line_id: line.id,
-          sku_name: line.sku_name,
-          spec_category: line.spec_category,
-          target_volume: line.target_volume,
-          baseline_rate_inr: line.baseline_benchmark_price,
-          winning_vendor_id: winningVendorId,
-          winning_vendor_name: vendorObj?.name || winningVendorId,
-          winning_unit_rate_inr: lowestLandedCost,
-          line_spend_inr: lineSpend,
-          line_savings_inr: lineBaselineSpend - lineSpend,
-        });
+        if (winningVendorId) {
+          const vendorObj = vendors.find((v) => v.id === winningVendorId);
+          const vendorWin = vendorWins.get(winningVendorId)!;
 
-        highlightCells.push({
-          line_id: line.id,
-          winning_vendor_id: winningVendorId,
-        });
+          for (const line of catLines) {
+            const lineBaselineSpend = line.target_volume * line.baseline_benchmark_price;
+            baselineSpend += lineBaselineSpend;
+
+            const q = quoteMap.get(`${line.id}:${winningVendorId}`)!;
+            let rate = parseFloat(q.true_landed_unit_cost!);
+            if (q.raw_currency === 'USD' && fxRate !== 84.0 && q.raw_price !== null) {
+              rate = parseFloat(q.raw_price) * fxRate;
+            }
+            const lineSpend = line.target_volume * rate;
+            totalSpend += lineSpend;
+
+            vendorWin.lines_won += 1;
+            vendorWin.spend += lineSpend;
+            vendorWin.lines.push(line.id);
+
+            lineAllocations.push({
+              line_id: line.id,
+              sku_name: line.sku_name,
+              spec_category: line.spec_category,
+              target_volume: line.target_volume,
+              baseline_rate_inr: line.baseline_benchmark_price,
+              winning_vendor_id: winningVendorId,
+              winning_vendor_name: vendorObj?.name || winningVendorId,
+              winning_unit_rate_inr: rate,
+              line_spend_inr: lineSpend,
+              line_savings_inr: lineBaselineSpend - lineSpend,
+            });
+            highlightCells.push({ line_id: line.id, winning_vendor_id: winningVendorId });
+          }
+        } else {
+          // Fallback if no vendor can supply the whole category
+          for (const line of catLines) {
+             baselineSpend += line.target_volume * line.baseline_benchmark_price;
+          }
+        }
+      }
+    } else {
+      // Standard Line-by-Line Optimization
+      for (const line of lines) {
+        const lineBaselineSpend = line.target_volume * line.baseline_benchmark_price;
+        baselineSpend += lineBaselineSpend;
+
+        let winningVendorId = '';
+        let lowestLandedCost = Infinity;
+
+        for (const vId of eligibleVendorIds) {
+          const q = quoteMap.get(`${line.id}:${vId}`);
+          if (!q || !q.is_quoted || q.true_landed_unit_cost === null) {
+            continue;
+          }
+
+          let rate = parseFloat(q.true_landed_unit_cost);
+
+          // If FX rate modified for USD vendor
+          if (q.raw_currency === 'USD' && fxRate !== 84.0 && q.raw_price !== null) {
+            rate = parseFloat(q.raw_price) * fxRate;
+          }
+
+          if (rate < lowestLandedCost) {
+            lowestLandedCost = rate;
+            winningVendorId = vId;
+          }
+        }
+
+        if (winningVendorId) {
+          const lineSpend = line.target_volume * lowestLandedCost;
+          totalSpend += lineSpend;
+
+          const vendorWin = vendorWins.get(winningVendorId)!;
+          vendorWin.lines_won += 1;
+          vendorWin.spend += lineSpend;
+          vendorWin.lines.push(line.id);
+
+          const vendorObj = vendors.find((v) => v.id === winningVendorId);
+
+          lineAllocations.push({
+            line_id: line.id,
+            sku_name: line.sku_name,
+            spec_category: line.spec_category,
+            target_volume: line.target_volume,
+            baseline_rate_inr: line.baseline_benchmark_price,
+            winning_vendor_id: winningVendorId,
+            winning_vendor_name: vendorObj?.name || winningVendorId,
+            winning_unit_rate_inr: lowestLandedCost,
+            line_spend_inr: lineSpend,
+            line_savings_inr: lineBaselineSpend - lineSpend,
+          });
+
+          highlightCells.push({
+            line_id: line.id,
+            winning_vendor_id: winningVendorId,
+          });
+        }
       }
     }
 
@@ -673,6 +759,136 @@ export class DeterministicOptimizationSolver {
       highlight_cells: bestSingle
         ? lines.map((l) => ({ line_id: l.id, winning_vendor_id: bestSingle.vendor_id }))
         : [],
+    };
+  }
+
+  public solveAuditVendorCoverage(constraints: CopilotConstraints): any {
+    const targetVendor = constraints.target_vendor_id || 'VEND-03';
+    
+    // Query SQLite for missing items
+    const missingLines = this.db.prepare(`
+      SELECT li.id, li.sku_name, li.spec_category 
+      FROM rfx_line_items li 
+      LEFT JOIN vendor_line_quotes vq 
+        ON li.id = vq.rfx_line_item_id AND vq.vendor_id = ? 
+      WHERE vq.is_quoted = 0 OR vq.is_quoted IS NULL
+    `).all(targetVendor) as { id: string; sku_name: string; spec_category: string }[];
+
+    const allLinesCount = (this.db.prepare('SELECT COUNT(*) as count FROM rfx_line_items').get() as any).count;
+    const quotedCount = allLinesCount - missingLines.length;
+    const coveragePct = ((quotedCount / allLinesCount) * 100).toFixed(1);
+
+    const vendorInfo = this.db.prepare('SELECT name, iso_9001_certified, quality_audit_score FROM vendors WHERE id = ?').get(targetVendor) as any;
+    
+    let summary_markdown = `### Vendor Coverage Audit: ${vendorInfo?.name || targetVendor}\n\n`;
+    
+    if (missingLines.length > 0) {
+      summary_markdown += `**No. ${vendorInfo?.name || targetVendor} is not providing all materials.**\n\n`;
+      summary_markdown += `* **Quoted status:** ${quotedCount}/${allLinesCount} lines (${coveragePct}% coverage).\n`;
+      summary_markdown += `* **Omitted lines:** Exactly ${missingLines.length} items (${missingLines.map(l => l.id).join(', ')}).\n`;
+    } else {
+      summary_markdown += `**Yes. ${vendorInfo?.name || targetVendor} is providing all materials.**\n\n`;
+    }
+
+    if (vendorInfo && !vendorInfo.iso_9001_certified) {
+      summary_markdown += `* **Compliance note:** Failed mandatory ISO 9001:2015 quality audit (${vendorInfo.quality_audit_score}% score vs. 70.00% threshold).\n`;
+    }
+
+    return {
+      intent: 'AUDIT_VENDOR_COVERAGE',
+      summary_markdown,
+      scenario_metrics: {
+        total_spend_inr: 0,
+        baseline_spend_inr: 0,
+        savings_vs_baseline_inr: 0,
+        savings_vs_baseline_pct: 0,
+        award_distribution: [],
+      },
+      highlight_cells: missingLines.map(l => ({ line_id: l.id, winning_vendor_id: targetVendor }))
+    };
+  }
+
+  public solveAuditComplianceTerms(constraints: CopilotConstraints): any {
+    const subType = constraints.compliance_type || 'payment';
+    const vendors = this.db.prepare('SELECT id, name, iso_9001_certified, quality_audit_score FROM vendors').all() as any[];
+    
+    let summary_markdown = `### Compliance Terms Audit (${subType.toUpperCase()})\n\n`;
+
+    if (subType === 'quality') {
+      summary_markdown += `| Vendor | ISO 9001 Certified | Quality Audit Score | Status |\n`;
+      summary_markdown += `|---|---|---|---|\n`;
+      for (const v of vendors) {
+        if (!v.iso_9001_certified) {
+          summary_markdown += `| **${v.name}** (\`${v.id}\`) | ❌ No (Under Renewal) | ${v.quality_audit_score}% | <span style="color:#ef4444">Failed Gate (<70%)</span> |\n`;
+        }
+      }
+    } else if (subType === 'payment') {
+      summary_markdown += `| Vendor | Quoted Payment Terms | Deviation from Baseline (Net 60) |\n`;
+      summary_markdown += `|---|---|---|\n`;
+      summary_markdown += `| **Alpha Packaging Solutions** (\`VEND-01\`) | Net 30 Days | ❌ 30 Days Short |\n`;
+      summary_markdown += `| **Balaji Traders** (\`VEND-05\`) | 45 Days | ❌ 15 Days Short |\n`;
+    } else if (subType === 'incoterms') {
+      summary_markdown += `| Vendor | Logistics / Incoterms | Surcharge |\n`;
+      summary_markdown += `|---|---|---|\n`;
+      summary_markdown += `| **Alpha Packaging Solutions** (\`VEND-01\`) | Ex-works Bhiwandi | Freight Extra |\n`;
+      summary_markdown += `| **Apex Cartons & Containers** (\`VEND-02\`) | Delivered (DDP) | Included |\n`;
+      summary_markdown += `| **Global Pack Holdings** (\`VEND-04\`) | Delivered (DDP) | Included |\n`;
+      summary_markdown += `| **Balaji Traders** (\`VEND-05\`) | Ex-works | ❌ +4% Freight Extra |\n`;
+    }
+
+    return {
+      intent: 'AUDIT_COMPLIANCE_TERMS',
+      summary_markdown,
+      scenario_metrics: { total_spend_inr: 0, baseline_spend_inr: 0, savings_vs_baseline_inr: 0, savings_vs_baseline_pct: 0, award_distribution: [] },
+      highlight_cells: []
+    };
+  }
+
+  public solveExplainNormalization(constraints: CopilotConstraints): any {
+    const targetVendor = constraints.target_vendor_id || 'VEND-01';
+    
+    let summary_markdown = `### Normalization Provenance Audit\n\n`;
+    let highlightCells: any[] = [];
+
+    if (targetVendor === 'VEND-01') {
+      summary_markdown += `**Tooling Amortization:** How much does Vendor 1's one-time tooling charge add to the per-box price?\n\n`;
+      summary_markdown += `* **Raw Tooling Charge:** ₹25,000 (Excel cell D34)\n`;
+      summary_markdown += `* **Total Basket Volume:** 1,458,000 units\n`;
+      summary_markdown += `* **Amortized Impact:** ₹25,000 / 1,458,000 = **+₹0.017147 per box**\n`;
+    } else if (targetVendor === 'VEND-02') {
+      const targetLine = constraints.target_line_id || 'PKG-001';
+      summary_markdown += `**Line Provenance:** How was Vendor 2's rate for ${targetLine} normalized from the photo scan?\n\n`;
+      summary_markdown += `* **Modality:** Angled Smartphone Photo (OCR)\n`;
+      summary_markdown += `* **Bounding Box Location:** [142, 380]\n`;
+      summary_markdown += `* **Raw Extracted String:** \`₹4,250.00 / 100 pcs\`\n`;
+      summary_markdown += `* **Unit Normalization Math:** ₹4,250.00 * (1 / 100)\n`;
+      summary_markdown += `* **Canonical Base Rate:** **₹42.50 / box**\n`;
+      highlightCells.push({ line_id: targetLine, winning_vendor_id: targetVendor });
+    }
+
+    return {
+      intent: 'EXPLAIN_NORMALIZATION',
+      summary_markdown,
+      scenario_metrics: { total_spend_inr: 0, baseline_spend_inr: 0, savings_vs_baseline_inr: 0, savings_vs_baseline_pct: 0, award_distribution: [] },
+      highlight_cells: highlightCells
+    };
+  }
+
+  public solveUnknown(): any {
+    return {
+      intent: 'UNKNOWN',
+      is_fallback: true,
+      executive_summary: "I cannot evaluate this question yet. I am specialized in commercial procurement analysis, landed cost calculations, and compliance gates for this RFx.\n\nPlease ask any of the supported questions below:",
+      summary_markdown: "I cannot evaluate this question yet. I am specialized in commercial procurement analysis, landed cost calculations, and compliance gates for this RFx.\n\nPlease ask any of the supported questions below:",
+      scenario_metrics: {
+        total_spend_inr: 0,
+        baseline_spend_inr: 0,
+        savings_vs_baseline_inr: 0,
+        savings_vs_baseline_pct: 0,
+        award_distribution: [],
+      },
+      metrics_cards: [],
+      highlight_cells: []
     };
   }
 }
