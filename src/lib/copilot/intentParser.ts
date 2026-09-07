@@ -46,15 +46,30 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
   const normalized = query.toLowerCase().trim();
 
   // 1. Check for FX Sensitivity queries (e.g. "USD moves from 84 to 87", "USD strengthens to 87.00 INR", "currency sensitivity")
+  // Guard: skip if the query is primarily a split-award or single-source query that happens to mention USD as a constraint
+  const isPrimarilySplitOrSingleSource =
+    normalized.includes('split') ||
+    normalized.includes('cheapest per line') ||
+    normalized.includes('line-by-line') ||
+    normalized.includes('line by line') ||
+    normalized.includes('single source') ||
+    normalized.includes('single-source') ||
+    normalized.includes('sole source') ||
+    normalized.includes('sole supplier') ||
+    normalized.match(/award.*categor/i) !== null;
+
   if (
-    normalized.includes('usd') ||
-    normalized.includes('fx') ||
-    normalized.includes('exchange rate') ||
-    normalized.includes('peg') ||
-    normalized.includes('dollar') ||
-    normalized.includes('inr/usd') ||
-    normalized.includes('strengthens') ||
-    normalized.includes('weakens')
+    !isPrimarilySplitOrSingleSource &&
+    (
+      normalized.includes('usd') ||
+      normalized.includes('fx') ||
+      normalized.includes('exchange rate') ||
+      normalized.includes('peg') ||
+      normalized.includes('dollar') ||
+      normalized.includes('inr/usd') ||
+      normalized.includes('strengthens') ||
+      normalized.includes('weakens')
+    )
   ) {
     let targetRate = 87.0;
     const rateMatch = query.match(
@@ -88,13 +103,18 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
 
   // 1a. Explain Normalization
   if (
-    normalized.match(/(?:how\s+was.*normalized|tooling.*add|plate.*amortiz|provenance)/i)
+    normalized.match(/(?:how\s+was.*(?:normalized|calculated|computed)|tooling.*add|plate.*amortiz|provenance|ocr.*(?:calculation|provenance)|(?:calculation|rate).*provenance|show.*(?:ocr|normalization|provenance))/i)
   ) {
-    let targetVendor = undefined;
-    if (normalized.match(/(?:vendor 2|v2)/i)) targetVendor = 'VEND-02';
-    if (normalized.match(/(?:vendor 1|v1)/i)) targetVendor = 'VEND-01';
-    let targetLineId = undefined;
-    if (normalized.match(/pkg-001/i)) targetLineId = 'PKG-001';
+    let targetVendor: string | undefined = undefined;
+    if (normalized.match(/(?:vendor\s*2|v2|apex|apex cartons)/i)) targetVendor = 'VEND-02';
+    if (normalized.match(/(?:vendor\s*1|v1|packaging world|alpha packaging)/i)) targetVendor = 'VEND-01';
+    if (normalized.match(/(?:vendor\s*3|v3|national paper)/i)) targetVendor = 'VEND-03';
+    if (normalized.match(/(?:vendor\s*4|v4|global pack)/i)) targetVendor = 'VEND-04';
+    if (normalized.match(/(?:vendor\s*5|v5|balaji)/i)) targetVendor = 'VEND-05';
+
+    let targetLineId: string | undefined = undefined;
+    const lineMatch = normalized.match(/pkg-(\d{3})/i);
+    if (lineMatch) targetLineId = `PKG-${lineMatch[1]}`;
 
     return {
       intent: 'EXPLAIN_NORMALIZATION',
@@ -108,7 +128,7 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
 
   // 1b. Audit Compliance Terms
   if (
-    normalized.match(/(?:payment\s+terms|deviated.*net\s*60|ex-works|freight.*extra|incoterms?|who.*failed.*iso|which.*vendors.*failed.*iso|mandatory.*iso|failed.*mandatory)/i)
+    normalized.match(/(?:payment\s+terms|deviated.*net\s*60|net\s*30|net\s*45|ex-works|freight.*extra|incoterms?|who.*failed.*iso|which.*vendors.*failed.*iso|mandatory.*iso|failed.*mandatory|asked\s+for.*net\s*\d+|net\s*\d+.*instead|deviations?.*(?:commercial|payment|terms))/i)
   ) {
     let subType: 'quality' | 'payment' | 'incoterms' = 'payment';
     if (normalized.match(/iso|quality/i)) subType = 'quality';
@@ -151,9 +171,15 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
     normalized.includes('single-source') ||
     normalized.includes('single source') ||
     normalized.includes('sole source') ||
+    normalized.includes('sole supplier') ||
+    normalized.includes('100% of volume') ||
+    normalized.includes('100% of basket') ||
     normalized.includes('rank vendor') ||
     normalized.includes('compare suppliers') ||
     normalized.includes('vendor ranking') ||
+    normalized.match(/whole\s+basket\s+(?:to\s+)?(?:a\s+)?(?:single|one)\s+vendor/i) ||
+    normalized.match(/(?:give|award)\s+(?:100%|all).*(?:to\s+a?\s*(?:sole|single|one)\s+supplier)/i) ||
+    normalized.match(/cheapest\s+single\s+vendor/i) ||
     (normalized.includes('cheapest') && normalized.includes('vendor') && !normalized.includes('split') && !normalized.includes('per line'))
   ) {
     const excludeQualityFailed =
@@ -162,10 +188,19 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
       normalized.includes('certified') ||
       normalized.includes('failing');
 
+    // Extract custom FX rate if specified
+    let exchangeRate: number | undefined;
+    const fxMatch = query.match(/(?:exchange\s+rate|usd|dollar).*?(\d{2,3}(?:\.\d+)?)/i);
+    if (fxMatch) {
+      const parsed = parseFloat(fxMatch[1]);
+      if (parsed > 50 && parsed < 200) exchangeRate = parsed;
+    }
+
     return {
       intent: 'COMPARE_LANDED_COST',
       constraints: {
         exclude_failed_questionnaire: excludeQualityFailed,
+        ...(exchangeRate !== undefined ? { exchange_rate_usd_inr: exchangeRate } : {}),
       },
       metrics: ['total_landed_spend', 'vendor_rankings', 'coverage_gap'],
       raw_query: query,
@@ -176,12 +211,16 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
 
   // 4. Audit Vendor Coverage (e.g. "is vendor 3 providing all materials?")
   if (
-    normalized.match(/(?:providing\s+all|quoted?\s+all|quoted?\s+everything|complete\s+bid|all\s+materials|all\s+items|missing\s+lines|omitted|partial\s+bid|did\s+vendor\s+\d+\s+quote)/i)
+    normalized.match(/(?:providing\s+all|quoted?\s+all|quoting\s+all|quoted?\s+everything|quoting\s+everything|complete\s+bid|all\s+materials|all\s+items|missing\s+lines|omitted|partial\s+bid|did\s+vendor\s+\d+\s+quote|deliver\s+all|submit.*partial|can\s+vendor.*deliver|is\s+vendor.*(?:providing|quoting)|suppliers.*omitted|check\s+if.*supplier|any\s+supplier.*omit|supplier.*skip|supplier.*miss|supplier.*sku)/i)
   ) {
-    let targetVendor = 'VEND-03'; // default to Vendor 3 if not specified explicitly but asked
-    if (normalized.match(/(?:vendor 3|v3|national paper)/i)) {
-      targetVendor = 'VEND-03';
-    }
+    // Vendor resolution: explicit ID or name match takes priority
+    let targetVendor = 'VEND-03'; // default
+    if (normalized.match(/(?:vendor\s*1\b|v1\b|packaging world|alpha packaging)/i)) targetVendor = 'VEND-01';
+    else if (normalized.match(/(?:vendor\s*2\b|v2\b|apex carton)/i)) targetVendor = 'VEND-02';
+    else if (normalized.match(/(?:vendor\s*3\b|v3\b|national paper)/i)) targetVendor = 'VEND-03';
+    else if (normalized.match(/(?:vendor\s*4\b|v4\b|global pack)/i)) targetVendor = 'VEND-04';
+    else if (normalized.match(/(?:vendor\s*5\b|v5\b|balaji)/i)) targetVendor = 'VEND-05';
+
     return {
       intent: 'AUDIT_VENDOR_COVERAGE',
       constraints: { target_vendor_id: targetVendor },
@@ -221,7 +260,14 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
     normalized.includes('split cheapest') ||
     normalized.includes('optimal allocation') ||
     normalized.includes('cheapest per line') ||
+    normalized.includes('line-by-line') ||
+    normalized.includes('line by line') ||
     normalized.includes('award each packaging category') ||
+    normalized.includes('award categories') ||
+    normalized.match(/award\s+categor/i) !== null ||
+    normalized.match(/best.*line[- ]by[- ]line/i) !== null ||
+    normalized.match(/filter.*(?:non-compliant|non compliant|failed)/i) !== null ||
+    normalized.match(/cheapest\s+combination/i) !== null ||
     (normalized.includes('cheapest') && !normalized.includes('vendor'))
   ) {
     const excludeQualityFailed =
@@ -231,23 +277,53 @@ export function parseIntentDeterministic(query: string): CopilotIntentAST {
       normalized.includes('questionnaire') ||
       normalized.includes('compliance') ||
       normalized.includes('failing') ||
-      normalized.includes('excluding');
+      normalized.includes('excluding') ||
+      normalized.includes('failed audit') ||
+      normalized.includes('failed audits') ||
+      normalized.includes('non-compliant') ||
+      normalized.includes('non compliant') ||
+      normalized.match(/filter.*(?:non-compliant|failed)/i) !== null ||
+      normalized.match(/ignoring.*(?:failed|non-compliant)/i) !== null;
 
+    // Concentration limit extraction
     let maxConcentration: number | undefined;
-    const concMatch = normalized.match(/(?:max|cap|limit)\s+(?:at\s+)?(\d{1,3})%/i);
+    const concMatch = normalized.match(/(?:max|cap|limit)\s+(?:at\s+)?(\d{1,3})%/i) ||
+      normalized.match(/(\d{1,3})%\s+(?:of\s+)?(?:spend|total|concentration)/i) ||
+      normalized.match(/no\s+(?:single\s+)?vendor.*?(\d{1,3})%/i);
     if (concMatch && concMatch[1]) {
       maxConcentration = parseFloat(concMatch[1]) / 100.0;
     }
-    
-    const awardByCategory = normalized.includes('category');
+
+    // FX rate extraction for combined queries (e.g., "split award if USD is 87.00")
+    let exchangeRate = 84.0;
+    const fxInSplit = query.match(/(?:usd|dollar|exchange\s+rate|fx)\s+(?:is\s+|at\s+|=\s*|to\s+)?(\d{2,3}(?:\.\d+)?)/i);
+    if (fxInSplit && fxInSplit[1]) {
+      const parsed = parseFloat(fxInSplit[1]);
+      if (parsed > 50 && parsed < 200) exchangeRate = parsed;
+    }
+
+    // Eligible vendor extraction: "only between Vendor 1 and Vendor 2"
+    let eligibleVendorIds: string[] | undefined;
+    const vendorOnlyMatch = normalized.match(/(?:only\s+between|only\s+from|restrict.*to|between)\s+(vendor\s+\d[\s\w,and]+)/i);
+    if (vendorOnlyMatch) {
+      const ids: string[] = [];
+      const vMatches = vendorOnlyMatch[0].matchAll(/vendor\s+(\d)/gi);
+      for (const vm of vMatches) {
+        ids.push(`VEND-0${vm[1]}`);
+      }
+      if (ids.length > 0) eligibleVendorIds = ids;
+    }
+
+    const awardByCategory = normalized.includes('category') || normalized.includes('categories');
 
     return {
       intent: 'OPTIMIZE_SPLIT_AWARD',
       constraints: {
         exclude_failed_questionnaire: excludeQualityFailed,
         max_vendor_concentration_pct: maxConcentration || 1.0,
-        exchange_rate_usd_inr: 84.0,
+        exchange_rate_usd_inr: exchangeRate,
         award_by_category: awardByCategory,
+        ...(eligibleVendorIds ? { eligible_vendor_ids: eligibleVendorIds } : {}),
       },
       metrics: ['total_landed_spend', 'delta_vs_baseline', 'line_allocations', 'award_distribution'],
       raw_query: query,
